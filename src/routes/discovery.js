@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { z } = require('zod');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -26,7 +26,7 @@ const discoverySchema = z.object({
 // POST /api/discovery/run
 router.post('/run', discoveryLimiter, validate(discoverySchema), (req, res) => {
     const { category, city, radiusMeters, providers, maxLeads } = req.validatedBody;
-    const jobId = uuidv4();
+    const jobId = randomUUID();
 
     createJob(jobId);
 

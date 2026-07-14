@@ -5,6 +5,7 @@ const { searchYelp } = require('./yelp');
 const { searchOSM } = require('./osm');
 const { dedupeKey } = require('./normalize');
 const logger = require('../../utils/logger');
+const { randomUUID } = require('crypto');
 
 // In-memory job store
 const jobs = new Map();
@@ -136,8 +137,7 @@ async function runScheduledSearches() {
     try {
         const searches = await SavedSearch.find({ schedule: { $ne: null }, isPaused: false });
         for (const search of searches) {
-            const { v4: uuidv4 } = require('uuid');
-            const jobId = uuidv4();
+            const jobId = randomUUID();
             createJob(jobId);
             runDiscovery({
                 jobId,
