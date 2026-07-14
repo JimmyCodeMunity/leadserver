@@ -48,7 +48,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/health', (req, res) => {
+app.use('/', (req, res) => {
     res.send("API working well!!")
 })
 app.use('/api/auth', authRoutes);
