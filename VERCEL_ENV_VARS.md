@@ -16,6 +16,20 @@ Dashboard → Settings → Environment Variables → add:
 | `GOOGLE_PLACES_API_KEY` | your Google Places API key (optional) |
 | `YELP_API_KEY` | your Yelp Fusion key (optional) |
 
+> **Both Clerk keys must come from the same Clerk application.** The publishable
+> key and secret key are not interchangeable between Clerk apps. A mismatch
+> verifies tokens against one instance while fetching users from another, which
+> shows up as `401 INVALID_TOKEN` or "user not found" errors. The frontend
+> `VITE_CLERK_PUBLISHABLE_KEY` must also match the backend publishable key.
+> Decode the publishable key's host to check:
+>
+> ```bash
+> echo "$CLERK_PUBLISHABLE_KEY" | cut -d_ -f3 | base64 -d | cut -d'$' -f1
+> ```
+>
+> The sign-in URL host returned by `POST https://api.clerk.com/v1/sign_in_tokens`
+> must be the same instance.
+
 > CORS is fully open: the API reflects every request origin and allows
 > credentialed requests, so no origin allowlist is needed. Auth is stateless
 > (Clerk token in the `Authorization` header), so this does not grant access to

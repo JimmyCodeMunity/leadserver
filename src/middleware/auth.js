@@ -34,8 +34,50 @@ const authenticate = async (req, res, next) => {
 
         const { isAuthenticated, userId } = getAuth(req);
         if (!isAuthenticated || !userId) {
+            const authorization = req.headers.authorization || '';
+            const sentToken = authorization.startsWith('Bearer ');
+            const clerkReason = res.getHeader('x-clerk-auth-reason') || null;
+            const clerkStatus = res.getHeader('x-clerk-auth-status') || null;
+
+            let claims = null;
+            if (sentToken) {
+                try {
+                    claims = JSON.parse(
+                        Buffer.from(authorization.slice(7).split('.')[1], 'base64url').toString('utf8')
+                    );
+                } catch {
+                    claims = null;
+                }
+            }
+
+            logger.warn(
+                {
+                    sentToken,
+                    clerkReason,
+                    clerkStatus,
+                    claims: claims
+                        ? {
+                              iss: claims.iss,
+                              azp: claims.azp,
+                              sub: claims.sub,
+                              exp: claims.exp,
+                              now: Math.floor(Date.now() / 1000),
+                          }
+                        : null,
+                },
+                'Clerk authentication failed'
+            );
+
             return res.status(401).json({
-                error: { message: 'Unauthorized', code: 'UNAUTHORIZED' },
+                error: sentToken
+                    ? {
+                          message: 'Clerk rejected the session token. Sign out and sign in again.',
+                          code: 'INVALID_TOKEN',
+                      }
+                    : {
+                          message: 'No Clerk session token was sent. Sign out and sign in again.',
+                          code: 'NO_TOKEN',
+                      },
             });
         }
 
