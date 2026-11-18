@@ -1,6 +1,12 @@
 // Temporary boot diagnostic. Remove after the production startup issue is fixed.
 // It is intentionally isolated from src/index.js so it can report an import
 // failure that would otherwise take the whole API down.
+try {
+    require('dotenv').config();
+} catch {
+    // dotenv is optional in this isolated function
+}
+
 module.exports = async (req, res) => {
     const origin = req.headers.origin;
     if (origin) {

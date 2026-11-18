@@ -1,5 +1,4 @@
 const express = require('express');
-const { Webhook } = require('svix');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const SavedSearch = require('../models/SavedSearch');
@@ -7,6 +6,17 @@ const { linkOrCreateUser } = require('../services/userService');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
+// svix v2 is ESM-only. A top-level require() crashes the whole Vercel function
+// with ERR_REQUIRE_ESM, so load it lazily with dynamic import() instead.
+let webhookClassPromise = null;
+
+function loadWebhookClass() {
+    if (!webhookClassPromise) {
+        webhookClassPromise = import('svix').then((mod) => mod.Webhook);
+    }
+    return webhookClassPromise;
+}
 
 function primaryEmail(data) {
     return (
@@ -34,6 +44,7 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
 
     let evt;
     try {
+        const Webhook = await loadWebhookClass();
         const wh = new Webhook(signingSecret);
         evt = wh.verify(req.body, {
             'svix-id': req.headers['svix-id'],
