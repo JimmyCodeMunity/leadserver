@@ -31,76 +31,20 @@ connectDB().catch(() => {});
 app.set('trust proxy', 1);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// Origins come from CLIENT_URL / CLIENT_URLS / FRONTEND_URL (comma-separated).
-// Wildcards are supported, e.g. https://leadscout-*.vercel.app.
-// Vercel preview deployments are allowed by default because Clerk auth travels
-// in the Authorization header (not ambient cookies); set
-// ALLOW_VERCEL_PREVIEWS=false to lock this down to explicit origins.
-const LOCAL_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:4173',
-    'http://127.0.0.1:4173',
-];
-
-// Keep the known production frontend working even if a Vercel env var is
-// missing or still points at an older custom domain.
-const BUILT_IN_ORIGINS = [...LOCAL_ORIGINS, 'https://clientleadscout.vercel.app'];
-
-const readOriginList = (...values) =>
-    values
-        .flatMap((value) => (value || '').split(','))
-        .map((origin) => origin.trim().replace(/\/+$/, ''))
-        .filter(Boolean);
-
-const allowedOrigins = [
-    ...new Set([
-        ...BUILT_IN_ORIGINS,
-        ...readOriginList(process.env.CLIENT_URL, process.env.CLIENT_URLS, process.env.FRONTEND_URL),
-    ]),
-];
-
-const wildcardMatchers = allowedOrigins
-    .filter((origin) => origin.includes('*'))
-    .map((origin) => new RegExp(`^${origin.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`, 'i'));
-
-const allowVercelPreviews = process.env.ALLOW_VERCEL_PREVIEWS !== 'false';
-
-const isVercelOrigin = (origin) => {
-    try {
-        const { protocol, hostname } = new URL(origin);
-        return protocol === 'https:' && (hostname === 'vercel.app' || hostname.endsWith('.vercel.app'));
-    } catch {
-        return false;
-    }
-};
-
-const isAllowedOrigin = (origin) => {
-    if (allowedOrigins.includes(origin)) return true;
-    if (wildcardMatchers.some((matcher) => matcher.test(origin))) return true;
-    if (allowVercelPreviews && isVercelOrigin(origin)) return true;
-    return false;
-};
-
-const corsOptions = {
-    origin: (origin, callback) => {
-        // No origin = curl / Postman / server-to-server — allow.
-        if (!origin) return callback(null, true);
-        if (isAllowedOrigin(origin)) return callback(null, true);
-
-        // Never throw here: a thrown CORS error becomes a 500 without CORS
-        // headers, which is exactly the opaque browser failure we want to avoid.
-        logger.warn({ origin }, 'CORS origin rejected — add it to CLIENT_URL on Vercel');
-        return callback(null, false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    maxAge: 86400,
-};
-
-// cors() also answers preflight OPTIONS requests.
-app.use(cors(corsOptions));
+// Allow every origin. Auth is stateless here: the Clerk token travels in the
+// Authorization header, not as an ambient cookie. Reflecting the request origin
+// (instead of "*") keeps credentialed requests working and guarantees browsers
+// can always read success AND error responses, even from random preview URLs.
+app.use(
+    cors({
+        origin: true,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        exposedHeaders: ['RateLimit-Limit', 'RateLimit-Policy', 'RateLimit-Remaining', 'RateLimit-Reset'],
+        maxAge: 86400,
+    })
+);
 
 // Wait for MongoDB before any /api route (including the Clerk webhook).
 app.use('/api', requireDB);

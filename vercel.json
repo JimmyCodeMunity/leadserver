@@ -4,17 +4,9 @@
         {
             "src": "src/index.js",
             "use": "@vercel/node"
-        },
-        {
-            "src": "api/boot-check.js",
-            "use": "@vercel/node"
         }
     ],
     "routes": [
-        {
-            "src": "/api/boot-check",
-            "dest": "api/boot-check.js"
-        },
         {
             "src": "/(.*)",
             "dest": "src/index.js"
